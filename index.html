@@ -15,7 +15,6 @@
             font-family: sans-serif;
             background: #000000;
             color: #eeeeee;
-            overflow: hidden;
         }
 
         #configButton, #closeButton {
@@ -38,7 +37,6 @@
 
         main {
             width: 100vw;
-            height: 100vh;
         }
 
         h1 {
@@ -79,6 +77,10 @@
             padding: 0.5vw;
         }
 
+        #configData input[type=checkbox] {
+            transform: scale(400%);
+        }
+
         #configData input,
         #configData select {
             width: 50vw;
@@ -96,6 +98,7 @@
         }
 
         main#loading {
+            height: 100vh;
             font-size: 5vw;
             text-align: center;
             display: flex;
@@ -106,9 +109,11 @@
         }
 
         main#dashboard {
+            height: 100vh;
             display: flex;
             flex-direction: column;
             gap: 1vh;
+            overflow: hidden;
         }
 
         main#dashboard > section {
@@ -364,6 +369,13 @@
                         </td>
                     </tr>
 
+                    <tr>
+                        <th><label for="silent">Silent Mode</label></th>
+                        <td>
+                            <input id="silent" type="checkbox" v-model="silent">
+                        </td>
+                    </tr>
+
                     <tr v-if="apiKey && selectedSiteId && !intervals">
                         <th></th>
                         <td>Loading...</td>
@@ -469,6 +481,46 @@
 
     setInterval(flashExtremeElements, 1000);
 
+    // Courtesy of Houshalter on SO: https://stackoverflow.com/a/29641185/243104
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext || window.audioContext);
+
+    async function beep({duration, frequency, volume, type}) {
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        if (volume) {
+            gainNode.gain.value = volume;
+        }
+        if (frequency) {
+            oscillator.frequency.value = frequency;
+        }
+        if (type) {
+            oscillator.type = type;
+        }
+        const promise = new Promise(resolve => {
+            oscillator.onended = resolve
+        })
+
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + ((duration || 500) / 1000));
+        return promise;
+    }
+
+    async function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms))
+    }
+
+    async function playAlert() {
+        await beep({duration: 300, frequency: 783.99, volume: 0.3, type: 'triangle'})
+        await sleep(80)
+        await beep({duration: 300, frequency: 783.99, volume: 0.3, type: 'triangle'})
+        await sleep(80)
+        await beep({duration: 150, frequency: 783.99, volume: 0.3, type: 'triangle'})
+    }
+
     const app = new Vue({
         el: "#app",
         template: "#dashboard-template",
@@ -486,6 +538,7 @@
                 intervals: null,
                 hoursForecastToShow: 18,
                 highPriceLimit: 100,
+                silent: false,
                 dateFormatWithTz: new Intl.DateTimeFormat('en-AU', {
                     hour: 'numeric',
                     minute: 'numeric',
@@ -576,6 +629,7 @@
                     })
                     if (response.ok) {
                         this.intervals = await response.json()
+                        this.possiblyPlayAlert()
                         // this.forecastGeneralIntervalsSorted[0].perKwh = 0;
                         // this.forecastGeneralIntervalsSorted[0].descriptor = "extremely_low";
                         // this.forecastGeneralIntervalsSorted[1].perKwh = 10;
@@ -601,6 +655,14 @@
                 if (minuteNow !== this.lastRequestMinute && now.getSeconds() > 10) {
                     this.lastRequestMinute = minuteNow;
                     this.loadIntervals();
+                }
+            },
+            possiblyPlayAlert() {
+                // Play an alert every 5 minutes if there's currently a spike
+                let isCurrentlyASpike = this.descriptor(this.currentGeneralInterval) === "spike";
+                let isZerothMinute = (new Date().getMinutes() % 5) < 1;
+                if (!this.silent && isCurrentlyASpike && isZerothMinute) {
+                    playAlert();
                 }
             },
             descriptor(interval) {
@@ -671,11 +733,15 @@
             },
             highPriceLimit(newValue) {
                 localStorage.setItem("highPriceLimit", newValue);
+            },
+            silent(newValue) {
+                localStorage.setItem("silent", newValue);
             }
         },
         async mounted() {
             this.hoursForecastToShow = localStorage.getItem("hoursForecastToShow") || DEFAULT_HOURS_FORECAST_TO_SHOW;
             this.highPriceLimit = localStorage.getItem("highPriceLimit") || DEFAULT_HIGH_PRICE_LIMIT;
+            this.silent = localStorage.getItem("silent") === "true" || localStorage.getItem("silent") === true;
             const storedApiKey = localStorage.getItem("apiKey");
             if (storedApiKey) {
                 this.apiKey = storedApiKey;
