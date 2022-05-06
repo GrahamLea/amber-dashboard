@@ -1,7 +1,7 @@
 # Amber Electric Dashboard
 
 This is my own custom dashboard for energy price foreccasts from electricity retailer [Amber Electric](https://www.amber.com.au/).
-it's designed to be run on a tablet on a wall and be interpretable from a distance.
+The dashboard is designed to be run on in a browser on a tablet on a wall, and to be interpretable from a distance.
 
 
 ## Use
