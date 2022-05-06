@@ -206,6 +206,19 @@
             flex-grow: 2.5;
         }
 
+        #future .bar .icon {
+            position: relative; /* to facilitate centering the icon */
+            margin-top: 1vh;
+            font-size: 1.5vw;
+            color: #ffffff;
+        }
+
+        #future .bar .icon .fa-solid {
+            position: relative;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
         #future .price {
             margin-top: 1vh;
             font-size: .9vw;
@@ -416,6 +429,9 @@
                         <span v-if="interval.perKwh >= 100" class="unit dollars">$</span>{{
                             formattedPrice(interval.perKwh)
                         }}<span v-if="interval.perKwh < 100" class="unit cents">c</span>
+                    </div>
+                    <div v-if="descriptor(interval) === 'spike'" class="icon">
+                        <i class="fa-solid fa-warning"></i>
                     </div>
                     <div class="time">{{ formattedTime(interval.startTime) }}</div>
                 </div>
