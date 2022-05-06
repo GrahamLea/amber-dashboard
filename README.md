@@ -1,19 +1,20 @@
 # Amber Electric Dashboard
 
-This is my own custom dashboard for energy price foreccasts from electricity retailer [Amber Electric](https://www.amber.com.au/).
-The dashboard is designed to be run on in a browser on a tablet on a wall, and to be interpretable from a distance.
+This is my own custom dashboard for displaying energy price foreccasts from electricity retailer [Amber Electric](https://www.amber.com.au/).
+
+The dashboard is intended to be run full time on a tablet, hung on a wall, and so is designed to be easily understood from a distance.
 
 
 ## Use
 
-Amber customers can [click here to use the Dashboard](https://grahamlea.github.io/amber-dashboard/)
+Amber customers can simply [click here to access the dashboard](https://grahamlea.github.io/amber-dashboard/)
 
 (You'll need an API key, which you can generate here: https://app.amber.com.au/developers/ )
 
 
 ## Implementation
 
-Amber [provide customers with an API](https://github.com/amberelectric/public-api/discussions) to access to their data.
+The dashboard uses the [Amber API](https://github.com/amberelectric/public-api/discussions), through which Amber customers gain get access their own data.
 
 The app is built as a simple, one-page [Vue.js](https://vuejs.org/) app.
 (See [index.html](index.html))
