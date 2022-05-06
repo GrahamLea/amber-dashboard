@@ -24,11 +24,11 @@
             right: 2vh;
             z-index: 1;
 
-            font-size: 6vh;
-            padding: 2vh;
-            width: 10vh;
-            height: 10vh;
-            border-radius: 1vh;
+            font-size: min(6vh, 6vw);
+            padding: min(2vh, 2vw);
+            width: min(10vh, 10vw);
+            height: min(10vh, 10vw);
+            border-radius: min(1vh, 1vw);
             vertical-align: center;
 
             background-color: rgba(200, 200, 200, 0.8);
@@ -95,7 +95,7 @@
         }
 
         main#loading {
-            font-size: 5vh;
+            font-size: 5vw;
             text-align: center;
             display: flex;
             flex-direction: column;
@@ -151,12 +151,13 @@
         }
 
         #currentLabel {
-            font-size: 35vh;
+            font-size: min(35vh, 40vw);
+            /*font-size: 35vh;*/
             line-height: 17vh;
         }
 
         #nextLabel {
-            font-size: 20vh;
+            font-size: min(20vh, 25vw);
             line-height: 10vh;
         }
 
