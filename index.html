@@ -1,0 +1,661 @@
+<!-- Copyright (c) 2022 Graham Lea. All rights reserved. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>Amber Electric Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            border: 0;
+        }
+
+        body {
+            font-family: sans-serif;
+            background: #000000;
+            color: #eeeeee;
+            overflow: hidden;
+        }
+
+        #configButton, #closeButton {
+            position: absolute;
+            top: 2vh;
+            right: 2vh;
+            z-index: 1;
+
+            font-size: 6vh;
+            padding: 2vh;
+            width: 10vh;
+            height: 10vh;
+            border-radius: 1vh;
+            vertical-align: center;
+
+            background-color: rgba(200, 200, 200, 0.8);
+        }
+
+
+        main {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        h1 {
+            font-size: 5vw;
+        }
+
+        main#config {
+            color: #333333;
+            background-color: #eeeeee;
+            text-align: center;
+            padding: 2vh;
+        }
+
+        #configData table {
+            margin-top: 10vh;
+            position: relative;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 4vw;
+            border-spacing: 5vh;
+        }
+
+        #configData table label {
+            margin-right: 1vw;
+        }
+
+        #configData table th,
+        #configData table td {
+            text-align: left;
+            vertical-align: baseline;
+        }
+
+        #configData label,
+        #configData input,
+        #configData select {
+            font-size: 3vw;
+            color: #333333;
+            padding: 0.5vw;
+        }
+
+        #configData input,
+        #configData select {
+            width: 50vw;
+        }
+
+        .configDataButtons {
+            margin-top: 2vh;
+        }
+
+        #configData button {
+            background-color: rgba(200, 200, 200, 0.8);
+            font-size: 6vh;
+            padding: 2vh;
+            border-radius: 1vh;
+        }
+
+        main#loading {
+            font-size: 5vh;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-content: center;
+            color: #777777;
+        }
+
+        main#dashboard {
+            display: flex;
+            flex-direction: column;
+            gap: 1vh;
+        }
+
+        main#dashboard > section {
+            flex-grow: 1; /* The 2 sections share the vertical space evenly */
+
+            display: flex;
+            flex-direction: row;
+            gap: 1vh;
+        }
+
+        #currentAndNext {
+            height: 49vh;
+        }
+
+        #current, #next {
+            position: relative; /* to anchor the relative positioning of the labels */
+        }
+
+        #next {
+            flex-grow: 1;
+        }
+
+        #currentAndNext .textContainer {
+            position: absolute;
+            z-index: 1;
+            bottom: 1.5vh;
+        }
+
+        #current .textContainer {
+            left: 2vw;
+        }
+
+        #next .textContainer {
+            text-align: right;
+            right: 2vw;
+        }
+
+        #currentAndNext .label,
+        #currentAndNext .description {
+            filter: drop-shadow(0 0 1vh #000000);
+        }
+
+        #currentLabel {
+            font-size: 35vh;
+            line-height: 17vh;
+        }
+
+        #nextLabel {
+            font-size: 20vh;
+            line-height: 10vh;
+        }
+
+        #currentAndNext .description {
+            width: 45vw;
+            font-size: min(4vw, 7vh);
+        }
+
+        .unit {
+            font-size: 50%;
+        }
+
+        .unit.dollars {
+            position: relative;
+            bottom: .5em;
+        }
+
+        #currentDescription {
+            left: 2vw;
+        }
+
+        #nextDescription {
+            right: 2vw;
+            text-align: right;
+        }
+
+        #future {
+            color: #000000;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 0.5vw;
+        }
+
+        #future .high,
+        #future .spike {
+            color: #eeeeee;
+        }
+
+        #future .bar {
+            flex-grow: 1;
+            position: relative;
+        }
+
+        #future .bar.soon {
+            flex-grow: 2.5;
+        }
+
+        #future .price {
+            margin-top: 1vh;
+            font-size: .9vw;
+            text-align: center;
+        }
+
+        #future .soon .price {
+            font-size: 1.8vw;
+        }
+
+        #future .time {
+            writing-mode: vertical-rl;
+            margin: 0;
+            font-size: 1.3vw;
+            position: absolute;
+            bottom: 1vh;
+            font-weight: bolder;
+            letter-spacing: .1em;
+            left: 50%;
+            transform: translateX(-50%) rotate(180deg);
+        }
+
+
+        #future .spike .time {
+            filter: drop-shadow(0 0 .4vh #000000);
+        }
+
+        .extremely_low {
+            background: #6aff6a repeating-radial-gradient(
+                    circle at 50% 100%,
+                    rgba(0, 0, 0, 0),
+                    rgba(0, 0, 0, 0.2) 15%
+            );
+        }
+
+        .extremely_low.highlight {
+            filter: brightness(1.1);
+        }
+
+        .very_low {
+            background: #01cb01;
+        }
+
+        .low {
+            background: #dcdc03;
+        }
+
+        .neutral {
+            background: darkorange;
+        }
+
+        .high {
+            background: #ad0a0a;
+        }
+
+        .spike {
+            background: #ef131a repeating-linear-gradient(
+                    45deg,
+                    rgba(0, 0, 0, 0),
+                    rgba(0, 0, 0, 0) 10px,
+                    rgba(0, 0, 0, 0.4) 10px,
+                    rgba(0, 0, 0, 0.4) 20px
+            );
+        }
+
+        .spike.highlight {
+            filter: brightness(1.25);
+        }
+
+        .unknown {
+            background: grey;
+        }
+    </style>
+</head>
+<body>
+<noscript>
+    <strong>This dashboard uses JavaScript. Please enable it to continue.</strong>
+</noscript>
+
+<template id="app"></template>
+
+<script type="text/x-template" id="dashboard-template">
+    <div>
+        <main id="config" v-if="configMode">
+            <button id="closeButton" @click="configMode = false">
+                <i v-if="configMode" id="closeIcon" class="fa-solid fa-xmark"></i>
+            </button>
+            <div id="configData">
+                <h1>Amber Electric Dashboard</h1>
+                <table>
+                    <tr>
+                        <th>
+                            <label for="apiKey">API Key:</label>
+                            <sup>
+                                <i class="fa-solid fa-circle-info"
+                                   style="font-size: 50%"
+                                   :title="'Get your personal Amber API Key from:\nhttps://app.amber.com.au/developers/\n\n' +
+                                    'The dashboard stores your key safely in your browser\'s local storage.'"></i>
+                            </sup>
+                        </th>
+                        <td>
+                            <input id="apiKey" type="text" v-model="editableApiKey">
+                            <div class="configDataButtons">
+                                <button v-if="apiKeyDirty" @click="saveApiKey">Save</button>
+                                <button v-if="apiKeyDirty" @click="editableApiKey = apiKey">Cancel
+                                </button>
+                            </div>
+                            <div style="color: #ad0a0a; font-size: 50%" v-if="sitesRequestError">
+                                Failed to retrieve Site list: {{ sitesRequestError }}
+                            </div>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th><label for="site">Site:</label></th>
+                        <td>
+                            <select id="site" v-model="selectedSiteId"
+                                    :disabled="sitesRequestError">
+                                <option v-for="site in sites" :value="site.id">
+                                    NMI: {{ site.nmi }} ({{ site.network }})
+                                </option>
+                            </select>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th><label for="hoursForecastToShow">Max. Forecast Hours</label></th>
+                        <td>
+                            <input id="hoursForecastToShow" type="number" min="1" max="48"
+                                   v-model="hoursForecastToShow">
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th><label for="highPriceLimit">High Price Threshold (c)</label></th>
+                        <td>
+                            <input id="highPriceLimit" type="number" min="0" max="2000"
+                                   v-model="highPriceLimit">
+                        </td>
+                    </tr>
+
+                    <tr v-if="intervals">
+                        <th>
+                            &nbsp;
+                        </th>
+                        <td style="color: #01cb01">
+                            Dashboard is ready!
+                        </td>
+                    </tr>
+                </table>
+
+            </div>
+        </main>
+        <main id="loading" v-else-if="!intervals">
+            <div>Loading Amber forecasts...</div>
+        </main>
+        <main id="dashboard" v-else>
+            <button id="configButton" @click="configMode = true">
+                <i id="configIcon" class="fa-solid fa-gear"></i>
+            </button>
+            <section id="currentAndNext">
+
+                <div id="current" :class="descriptor(currentGeneralInterval)"
+                     :style="{width: currentIntervalRemainingPercentage + '%'}">
+                    <div id="currentText" class="textContainer">
+                        <div id="currentLabel" class="label">
+                        <span v-if="currentGeneralInterval.perKwh >= 100"
+                              class="unit dollars">$</span>{{
+                                formattedPrice(currentGeneralInterval.perKwh)
+                            }}<span v-if="currentGeneralInterval.perKwh < 100"
+                                    class="unit cents">c</span>
+                        </div>
+                        <div id="currentDescription" class="description">
+                            for the next {{ currentIntervalRemainingMinutes }} minutes
+                        </div>
+                    </div>
+                </div>
+
+                <div id="next" :class="descriptor(nextGeneralInterval)">
+                    <div id="nextText" class="textContainer">
+                        <div id="nextLabel" class="label">
+                            <span v-if="nextGeneralInterval.perKwh >= 100"
+                                  class="unit dollars">$</span>{{
+                                formattedPrice(nextGeneralInterval.perKwh)
+                            }}<span v-if="nextGeneralInterval.perKwh < 100"
+                                    class="unit cents">c</span>
+                        </div>
+                        <div id="nextDescription" class="description">
+                            forecast from {{ nextGeneralIntervalStartTime }}
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <section id="future">
+                <div v-for="interval in forecastGeneralIntervalsSorted.slice(0, hoursForecastToShow * 2)"
+                     class="bar"
+                     :class="[descriptor(interval), startsSoon(interval) ? 'soon' : '']"
+                     :style="{height: `${50 * heightPercentForBar(interval)}vh`}">
+                    <div class="price">
+                        <span v-if="interval.perKwh >= 100" class="unit dollars">$</span>{{
+                            formattedPrice(interval.perKwh)
+                        }}<span v-if="interval.perKwh < 100" class="unit cents">c</span>
+                    </div>
+                    <div class="time">{{ formattedTime(interval.startTime) }}</div>
+                </div>
+                <div class="strut" style="height: 50vh"></div>
+            </section>
+        </main>
+    </div>
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+
+<script>
+    const TWO_HOURS_IN_MS = 2 * 60 * 60 * 1000;
+    const DEFAULT_HOURS_FORECAST_TO_SHOW = 18;
+    const DEFAULT_HIGH_PRICE_LIMIT = 100;
+
+    const BAR_THRESHOLD_1 = 20;
+    const BAR_THRESHOLD_2 = 40;
+    const BAR_THRESHOLD_3 = 80;
+    const BAR_THRESHOLD_4 = 1700;
+
+    function flashExtremeElements() {
+        const nowMs = Date.now();
+        const on = (nowMs / 1000) % 2 <= 1;
+        document.querySelectorAll('.spike, .extremely_low').forEach(bar => {
+            if (on) {
+                bar.classList.add("highlight");
+            } else {
+                bar.classList.remove("highlight");
+            }
+        });
+    }
+
+    setInterval(flashExtremeElements, 1000);
+
+    const app = new Vue({
+        el: "#app",
+        template: "#dashboard-template",
+        data: function () {
+            return {
+                configMode: true,
+                apiKey: null,
+                editableApiKey: null,
+                selectedSiteId: null,
+                lastRequestMinute: -1,
+                sites: null,
+                sitesRequestError: null,
+                intervals: null,
+                hoursForecastToShow: 18,
+                highPriceLimit: 100,
+                dateFormatWithTz: new Intl.DateTimeFormat('en-AU', {
+                    hour: 'numeric',
+                    minute: 'numeric',
+                    timeZoneName: 'short'
+                }),
+                dateFormat: new Intl.DateTimeFormat('en-AU', {
+                    hour: 'numeric',
+                    minute: 'numeric'
+                })
+            }
+        },
+        computed: {
+            apiKeyDirty() {
+                return this.editableApiKey !== this.apiKey;
+            },
+            generalIntervals() {
+                return this.intervals?.filter(interval => interval.channelType === "general");
+            },
+            currentGeneralInterval() {
+                return this.generalIntervals?.filter(interval => interval.type === "CurrentInterval")[0];
+            },
+            currentIntervalRemainingMinutes() {
+                return this.currentGeneralInterval ?
+                    Math.floor((new Date(this.currentGeneralInterval.endTime) - Date.now()) / 1000 / 60) + 1 :
+                    0;
+            },
+            currentIntervalRemainingPercentage() {
+                return this.currentIntervalRemainingMinutes / 30 * 100;
+            },
+            forecastGeneralIntervalsSorted() {
+                return this.generalIntervals ?
+                    _(this.generalIntervals)
+                        .filter(interval => interval.type === "ForecastInterval")
+                        .sortBy("nemTime")
+                        .value()
+                    : null
+            },
+            nextGeneralInterval() {
+                return this.forecastGeneralIntervalsSorted ? this.forecastGeneralIntervalsSorted[0] : null;
+            },
+            nextGeneralIntervalStartTime() {
+                return this.nextGeneralInterval ? this.dateFormat.format(new Date(this.nextGeneralInterval.startTime)) : null;
+            },
+        },
+        methods: {
+            saveApiKey() {
+                this.apiKey = this.editableApiKey;
+                this.loadSites();
+            },
+            async loadSites() {
+                if (!this.apiKey) {
+                    return;
+                }
+                this.sitesRequestError = null;
+                const url = `https://api.amber.com.au/v1/sites/`;
+                console.log("Requesting sites", {url});
+                const response = await fetch(url, {
+                    accept: "application/json",
+                    headers: {"Authorization": `Bearer ${this.apiKey}`}
+                });
+                if (response.ok) {
+                    response.json().then(data => this.sites = data)
+                    return true
+                } else {
+                    this.sitesRequestError = `Server response: ${response.status}`;
+                    return false
+                }
+            },
+            loadIntervals() {
+                if (!this.apiKey || !this.selectedSiteId) {
+                    return;
+                }
+                const now = new Date();
+                const startDate = new Date(new Date().setHours(10 + now.getHours() - 2))
+                    .toISOString().slice(0, -1);
+                const endDate = new Date(new Date().setHours(10 + now.getHours() + this.hoursForecastToShow + 2))
+                    .toISOString().slice(0, -1);
+                const url = `https://api.amber.com.au/v1/sites/${this.selectedSiteId}/prices`
+                    + `?startDate=${startDate}`
+                    + `&endDate=${endDate}`
+                    + `&resolution=30`;
+                console.log("Requesting forecasts", {startDate, endDate, url});
+                fetch(url, {
+                    accept: "application/json",
+                    headers: {"Authorization": `Bearer ${this.apiKey}`}
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        this.intervals = data;
+                        // this.forecastGeneralIntervalsSorted[0].perKwh = 0;
+                        // this.forecastGeneralIntervalsSorted[0].descriptor = "extremely_low";
+                        // this.forecastGeneralIntervalsSorted[1].perKwh = 10;
+                        // this.forecastGeneralIntervalsSorted[1].descriptor = "very_low";
+                    });
+            },
+            maybeLoadIntervals() {
+                if (!this.apiKey || !this.selectedSiteId) {
+                    return;
+                }
+                const now = new Date();
+                const minuteNow = now.getMinutes();
+                if (minuteNow !== this.lastRequestMinute && now.getSeconds() > 10) {
+                    this.lastRequestMinute = minuteNow;
+                    this.loadIntervals();
+                }
+            },
+            descriptor(interval) {
+                if (interval.spikeStatus === "spike" ||
+                    interval.spikeStatus === "potential" ||
+                    interval.perKwh > this.highPriceLimit) {
+                    return "spike"
+                }
+                return interval.descriptor || 'unknown'
+            },
+            formattedPrice(centsPerKwh) {
+                const rounded = Math.round(centsPerKwh);
+                return rounded < 100 ? rounded : (rounded / 100)
+            },
+            formattedTime(time, withTimezone) {
+                return (withTimezone ? this.dateFormatWithTz : this.dateFormat).format(new Date(time));
+            },
+            startsSoon(interval) {
+                return (new Date(interval.startTime) - new Date()) < TWO_HOURS_IN_MS;
+            },
+            heightPercentForBar(interval) {
+                const price = interval.perKwh;
+                let variablePortion = 0;
+                if (price > BAR_THRESHOLD_4) {
+                    variablePortion = 1.0;
+                } else if (price > BAR_THRESHOLD_3) {
+                    variablePortion = 0.75 + (0.25 * ((price - BAR_THRESHOLD_3) / (BAR_THRESHOLD_4 - BAR_THRESHOLD_3)));
+                } else if (price > BAR_THRESHOLD_2) {
+                    variablePortion = 0.50 + (0.25 * ((price - BAR_THRESHOLD_2) / (BAR_THRESHOLD_3 - BAR_THRESHOLD_2)));
+                } else if (price > BAR_THRESHOLD_1) {
+                    variablePortion = 0.25 + (0.25 * ((price - BAR_THRESHOLD_1) / (BAR_THRESHOLD_2 - BAR_THRESHOLD_1)));
+                } else if (price > 0) {
+                    variablePortion = (0.25 * price / BAR_THRESHOLD_1);
+                }
+                return 0.5 + 0.5 * variablePortion;
+            }
+        },
+        watch: {
+            apiKey(newKey) {
+                console.log("New API key set");
+                localStorage.setItem("apiKey", newKey);
+                this.editableApiKey = this.apiKey;
+                this.intervals = null;
+                this.selectedSiteId = null;
+            },
+            sites(newSites) {
+                console.log("Sites downloaded: ", newSites);
+                if (newSites && newSites.length === 1) {
+                    if (this.selectedSiteId === null) {
+                        this.selectedSiteId = newSites[0].id;
+                    } else if (!_.map(newSites, "id").includes(this.selectedSiteId)) {
+                        console.log("Current Selected Site ID not in new Sites list. Unsetting");
+                        this.selectedSiteId = null;
+                        this.configMode = true;
+                    }
+                }
+            },
+            selectedSiteId(newValue) {
+                console.log("Selected Site ID changed: ", newValue);
+                localStorage.setItem("selectedSiteId", newValue);
+                if (newValue) {
+                    this.lastRequestMinute = -1;
+                    this.maybeLoadIntervals();
+                }
+            },
+            hoursForecastToShow(newValue) {
+                localStorage.setItem("hoursForecastToShow", newValue);
+            },
+            highPriceLimit(newValue) {
+                localStorage.setItem("highPriceLimit", newValue);
+            }
+        },
+        async mounted() {
+            this.hoursForecastToShow = localStorage.getItem("hoursForecastToShow") || DEFAULT_HOURS_FORECAST_TO_SHOW;
+            this.highPriceLimit = localStorage.getItem("highPriceLimit") || DEFAULT_HIGH_PRICE_LIMIT;
+            const storedApiKey = localStorage.getItem("apiKey");
+            if (storedApiKey) {
+                this.apiKey = storedApiKey;
+                const storedSelectedSiteId = localStorage.getItem("selectedSiteId");
+                if (storedSelectedSiteId) {
+                    this.selectedSiteId = storedSelectedSiteId;
+                    if (await this.loadSites()) {
+                        this.configMode = false;
+                    }
+                } else {
+                    this.loadSites();
+                }
+            }
+            setInterval(this.maybeLoadIntervals, 1000);
+        }
+    });
+</script>
+<script src="https://kit.fontawesome.com/547b6e0b99.js" crossorigin="anonymous" async></script>
+
+</body>
+</html>
