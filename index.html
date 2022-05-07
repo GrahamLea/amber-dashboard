@@ -456,7 +456,7 @@
     </div>
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
 
 <script>
@@ -633,8 +633,8 @@
                     if (response.ok) {
                         this.intervals = await response.json()
                         this.possiblyPlayAlert()
-                        this.forecastGeneralIntervalsSorted[0].perKwh = 0;
-                        this.forecastGeneralIntervalsSorted[0].descriptor = "extremelyLow";
+                        // this.forecastGeneralIntervalsSorted[0].perKwh = 0;
+                        // this.forecastGeneralIntervalsSorted[0].descriptor = "extremelyLow";
                         // this.forecastGeneralIntervalsSorted[1].perKwh = 10;
                         // this.forecastGeneralIntervalsSorted[1].descriptor = "veryLow";
                         return true
