@@ -309,7 +309,7 @@
 <template id="app"></template>
 
 <script type="text/x-template" id="dashboard-template">
-    <div>
+    <div id="topLevelContainer">
         <main id="config" v-if="configMode">
             <button id="closeButton" @click="configMode = false">
                 <i v-if="configMode" id="closeIcon" class="fa-solid fa-xmark"></i>
@@ -404,10 +404,10 @@
                      :style="{width: currentIntervalRemainingPercentage + '%'}">
                     <div id="currentText" class="textContainer">
                         <div id="currentLabel" class="label">
-                        <span v-if="currentGeneralInterval.perKwh >= 100"
+                        <span v-if="Math.round(currentGeneralInterval.perKwh) >= 100"
                               class="unit dollars">$</span>{{
                                 formattedPrice(currentGeneralInterval.perKwh)
-                            }}<span v-if="currentGeneralInterval.perKwh < 100"
+                            }}<span v-if="Math.round(currentGeneralInterval.perKwh) < 100"
                                     class="unit cents">c</span>
                         </div>
                         <div id="currentDescription" class="description">
@@ -419,10 +419,10 @@
                 <div id="next" :class="descriptor(nextGeneralInterval)">
                     <div id="nextText" class="textContainer">
                         <div id="nextLabel" class="label">
-                            <span v-if="nextGeneralInterval.perKwh >= 100"
+                            <span v-if="Math.round(nextGeneralInterval.perKwh) >= 100"
                                   class="unit dollars">$</span>{{
                                 formattedPrice(nextGeneralInterval.perKwh)
-                            }}<span v-if="nextGeneralInterval.perKwh < 100"
+                            }}<span v-if="Math.round(nextGeneralInterval.perKwh) < 100"
                                     class="unit cents">c</span>
                         </div>
                         <div id="nextDescription" class="description">
@@ -441,9 +441,10 @@
                      :class="[descriptor(interval), startsSoon(interval) ? 'soon' : '']"
                      :style="{height: `${50 * heightPercentForBar(interval)}vh`}">
                     <div class="price">
-                        <span v-if="interval.perKwh >= 100" class="unit dollars">$</span>{{
+                        <span v-if="Math.round(interval.perKwh) >= 100"
+                              class="unit dollars">$</span>{{
                             formattedPrice(interval.perKwh)
-                        }}<span v-if="interval.perKwh < 100" class="unit cents">c</span>
+                        }}<span v-if="Math.round(interval.perKwh) < 100" class="unit cents">c</span>
                     </div>
                     <div v-if="descriptor(interval) === 'spike'" class="icon">
                         <i class="fa-solid fa-warning"></i>
@@ -469,6 +470,9 @@
     const BAR_THRESHOLD_2 = 40;
     const BAR_THRESHOLD_3 = 80;
     const BAR_THRESHOLD_4 = 1700;
+
+    const decimalFormat = new Intl.NumberFormat("en-AU",
+        {style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2});
 
     function flashExtremeElements() {
         const nowMs = Date.now();
@@ -633,6 +637,8 @@
                     if (response.ok) {
                         this.intervals = await response.json()
                         this.possiblyPlayAlert()
+                        // For testing...
+                        // this.currentGeneralInterval.perKwh = 99.6;
                         // this.forecastGeneralIntervalsSorted[0].perKwh = 0;
                         // this.forecastGeneralIntervalsSorted[0].descriptor = "extremelyLow";
                         // this.forecastGeneralIntervalsSorted[1].perKwh = 10;
@@ -678,7 +684,7 @@
             },
             formattedPrice(centsPerKwh) {
                 const rounded = Math.round(centsPerKwh);
-                return rounded < 100 ? rounded : (rounded / 100)
+                return rounded < 100 ? rounded : decimalFormat.format(rounded / 100)
             },
             formattedTime(time, withTimezone) {
                 return (withTimezone ? this.dateFormatWithTz : this.dateFormat).format(new Date(time));
