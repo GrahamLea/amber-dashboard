@@ -18,7 +18,7 @@
             overflow-x: hidden;
         }
 
-        #configButton, #closeButton {
+        .configButton, #closeButton {
             position: absolute;
             top: 2vh;
             right: 2vh;
@@ -392,11 +392,14 @@
             </div>
         </main>
         <main id="loading" v-else-if="!intervals">
+            <button class="configButton" @click="configMode = true">
+                <i class="configIcon fa-solid fa-gear"></i>
+            </button>
             <div>Loading Amber forecasts...</div>
         </main>
         <main id="dashboard" v-else>
-            <button id="configButton" @click="configMode = true">
-                <i id="configIcon" class="fa-solid fa-gear"></i>
+            <button class="configButton" @click="configMode = true">
+                <i class="configIcon fa-solid fa-gear"></i>
             </button>
             <section id="currentAndNext">
 
