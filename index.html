@@ -572,7 +572,7 @@
             },
             currentIntervalRemainingMinutes() {
                 return this.currentGeneralInterval ?
-                    Math.floor((new Date(this.currentGeneralInterval.endTime) - Date.now()) / 1000 / 60) + 1 :
+                    Math.max(1, Math.floor((new Date(this.currentGeneralInterval.endTime) - Date.now()) / 1000 / 60) + 1) :
                     0;
             },
             currentIntervalRemainingPercentage() {
