@@ -414,7 +414,8 @@
                                     class="unit cents">c</span>
                         </div>
                         <div id="currentDescription" class="description">
-                            for the next {{ currentIntervalRemainingMinutes }} minutes
+                            for the next {{ currentIntervalRemainingMinutes }}
+                            minute<template v-if="currentIntervalRemainingMinutes != 1">s</template>
                         </div>
                     </div>
                 </div>
