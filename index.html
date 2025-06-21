@@ -4,6 +4,7 @@
 <head>
     <meta charset="utf-8"/>
     <title>Amber Electric Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.6.1/build/global/luxon.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -439,7 +440,7 @@
             <section id="future" style="position: relative">
                 <div id="axis"
                      style="position: absolute; top: 24.5vh; height: 0.5vh; width: 100%; z-index: 1; background: rgba(0, 0, 0, 0.4); "></div>
-                <div v-for="interval in forecastGeneralIntervalsSorted.slice(0, hoursForecastToShow * 2)"
+                <div v-for="interval in forecastGeneralIntervalsSorted.slice(1)"
                      class="bar"
                      :class="[descriptor(interval), startsSoon(interval) ? 'soon' : '']"
                      :style="{height: `${50 * heightPercentForBar(interval)}vh`}">
@@ -476,6 +477,11 @@
 
     const decimalFormat = new Intl.NumberFormat("en-AU",
         {style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+    const DateTime = luxon.DateTime;
+    function nowNemTime() {
+        return DateTime.now().setZone('+10:00');
+    }
 
     function flashExtremeElements() {
         const nowMs = Date.now();
@@ -549,15 +555,6 @@
                 hoursForecastToShow: 18,
                 highPriceLimit: 100,
                 silent: false,
-                dateFormatWithTz: new Intl.DateTimeFormat('en-AU', {
-                    hour: 'numeric',
-                    minute: 'numeric',
-                    timeZoneName: 'short'
-                }),
-                dateFormat: new Intl.DateTimeFormat('en-AU', {
-                    hour: 'numeric',
-                    minute: 'numeric'
-                })
             }
         },
         computed: {
@@ -572,11 +569,11 @@
             },
             currentIntervalRemainingMinutes() {
                 return this.currentGeneralInterval ?
-                    Math.floor((new Date(this.currentGeneralInterval.endTime) - Date.now()) / 1000 / 60) + 1 :
+                    Math.floor((DateTime.fromISO(this.currentGeneralInterval.endTime).diff(DateTime.now(), "minutes").minutes)) + 1 :
                     0;
             },
             currentIntervalRemainingPercentage() {
-                return this.currentIntervalRemainingMinutes / 30 * 100;
+                return this.currentIntervalRemainingMinutes / this.currentGeneralInterval.duration * 100;
             },
             forecastGeneralIntervalsSorted() {
                 return this.generalIntervals ?
@@ -590,7 +587,9 @@
                 return this.forecastGeneralIntervalsSorted ? this.forecastGeneralIntervalsSorted[0] : null;
             },
             nextGeneralIntervalStartTime() {
-                return this.nextGeneralInterval ? this.dateFormat.format(new Date(this.nextGeneralInterval.startTime)) : null;
+                return this.nextGeneralInterval
+                    ? this.formattedTime(this.nextGeneralInterval.startTime)
+                    : null;
             },
         },
         methods: {
@@ -622,15 +621,11 @@
                     return;
                 }
                 this.intervalsRequestError = null;
-                const now = new Date();
-                const startDate = new Date(new Date().setHours(10 + now.getHours() - 2))
-                    .toISOString().slice(0, -1);
-                const endDate = new Date(new Date().setHours(10 + now.getHours() + this.hoursForecastToShow + 2))
-                    .toISOString().slice(0, -1);
+                const startDate = nowNemTime().set({minutes: 0}).toISODate();
+                const endDate = nowNemTime().plus({ hours: (this.hoursForecastToShow + 1) }).toISODate();
                 const url = `https://api.amber.com.au/v1/sites/${this.selectedSiteId}/prices`
                     + `?startDate=${startDate}`
-                    + `&endDate=${endDate}`
-                    + `&resolution=30`;
+                    + `&endDate=${endDate}`;
                 console.log("Requesting forecasts", {startDate, endDate, url});
                 try {
                     const response = await fetch(url, {
@@ -664,7 +659,7 @@
                 }
                 const now = new Date();
                 const minuteNow = now.getMinutes();
-                if (minuteNow !== this.lastRequestMinute && now.getSeconds() > 10) {
+                if (minuteNow !== this.lastRequestMinute && now.getSeconds() > 20) {
                     this.lastRequestMinute = minuteNow;
                     this.loadIntervals();
                 }
@@ -689,8 +684,12 @@
                 const rounded = Math.round(centsPerKwh);
                 return rounded < 100 ? rounded : decimalFormat.format(rounded / 100)
             },
-            formattedTime(time, withTimezone) {
-                return (withTimezone ? this.dateFormatWithTz : this.dateFormat).format(new Date(time));
+            formattedTime(time) {
+                return DateTime.fromISO(time).setZone("+10:00").toLocaleString({
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
             },
             startsSoon(interval) {
                 return (new Date(interval.startTime) - new Date()) < TWO_HOURS_IN_MS;
@@ -751,7 +750,7 @@
             }
         },
         async mounted() {
-            this.hoursForecastToShow = localStorage.getItem("hoursForecastToShow") || DEFAULT_HOURS_FORECAST_TO_SHOW;
+            this.hoursForecastToShow = Number(localStorage.getItem("hoursForecastToShow")) || DEFAULT_HOURS_FORECAST_TO_SHOW;
             this.highPriceLimit = localStorage.getItem("highPriceLimit") || DEFAULT_HIGH_PRICE_LIMIT;
             this.silent = localStorage.getItem("silent") === "true" || localStorage.getItem("silent") === true;
             const storedApiKey = localStorage.getItem("apiKey");
