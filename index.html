@@ -592,7 +592,7 @@
             },
             currentIntervalRemainingMinutes() {
                 return this.currentGeneralInterval ?
-                    Math.floor((DateTime.fromISO(this.currentGeneralInterval.endTime).diff(DateTime.now(), "minutes").minutes)) + 1 :
+                    Math.max(1, Math.floor((DateTime.fromISO(this.currentGeneralInterval.endTime).diff(DateTime.now(), "minutes").minutes)) + 1 :
                     0;
             },
             currentIntervalRemainingPercentage() {
