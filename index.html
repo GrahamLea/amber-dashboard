@@ -150,6 +150,7 @@
 
         #current, #next {
             position: relative; /* to anchor the relative positioning of the labels */
+            transition: width 1s linear;
         }
 
         #next {
@@ -438,8 +439,9 @@
                                     class="unit cents">c</span>
                         </div>
                         <div id="currentDescription" class="description">
-                            for {{ currentIntervalRemainingMinutes }}
-                            minute<template v-if="currentIntervalRemainingMinutes != 1">s</template>
+                            for the next
+                            <template v-if="currentIntervalRemainingMinutesForDisplay == 1">minute</template>
+                            <template v-else>{{ currentIntervalRemainingMinutesForDisplay }} minutes</template>
                         </div>
                     </div>
 
@@ -579,6 +581,7 @@
                 hoursForecastToShow: 18,
                 highPriceLimit: 100,
                 silent: false,
+                dateTimeNow: -1,
             }
         },
         computed: {
@@ -593,11 +596,16 @@
             },
             currentIntervalRemainingMinutes() {
                 return this.currentGeneralInterval ?
-                    Math.max(1, Math.floor((DateTime.fromISO(this.currentGeneralInterval.endTime).diff(DateTime.now(), "minutes").minutes)) + 1 :
+                    Math.max(0, DateTime.fromISO(this.currentGeneralInterval.endTime).diff(this.dateTimeNow, 'minutes').minutes) :
                     0;
             },
+            currentIntervalRemainingMinutesForDisplay() {
+                return Math.floor(this.currentIntervalRemainingMinutes + 1);
+            },
             currentIntervalRemainingPercentage() {
-                return this.currentIntervalRemainingMinutes / this.currentGeneralInterval.duration * 100;
+                return this.currentGeneralInterval ?
+                    this.currentIntervalRemainingMinutes / this.currentGeneralInterval.duration * 100
+                    : 0;
             },
             forecastGeneralIntervalsSorted() {
                 return this.generalIntervals ?
@@ -687,6 +695,7 @@
                     this.lastRequestMinute = minuteNow;
                     this.loadIntervals();
                 }
+                this.dateTimeNow = DateTime.now()
             },
             possiblyPlayAlert() {
                 // Play an alert every 5 minutes if there's currently a spike
