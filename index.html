@@ -4,7 +4,6 @@
 <head>
     <meta charset="utf-8"/>
     <title>Amber Electric Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/luxon@3.6.1/build/global/luxon.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -134,10 +133,10 @@
             display: flex;
             flex-direction: row;
             justify-content: space-between;
+        }
 
-            div {
-                padding: 0.15em;
-            }
+        #currentAndNextHeader div {
+            padding: 0.15em;
         }
 
         #currentAndNextPrices {
@@ -209,13 +208,13 @@
         }
 
         main#dashboard > section#future {
-            color: #000000;
             display: flex;
             flex-direction: row;
             justify-content: space-between;
             align-items: flex-end;
-            gap: 0.6vw;
             flex-grow: 1;
+            gap: 0.25vw;
+            padding-top: 1em;
         }
 
         #future .high,
@@ -223,13 +222,45 @@
             color: #eeeeee;
         }
 
-        #future .bar {
-            flex-grow: 1;
-            position: relative;
+        #future .intervalStack {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
         }
 
-        #future .bar.soon {
-            flex-grow: 2.5;
+        #future.hasNegatives .intervalStack {
+            gap: 3vh;
+        }
+
+        #future .intervalStack.shortInterval {
+            flex: 0.5;
+        }
+
+        #future .barContainer {
+            flex-grow: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        #future .barContainer.negative {
+            justify-content: flex-start;
+        }
+
+        #future .bar {
+            position: relative;
+            bottom: 0;
+        }
+
+        #future.hasNegatives .bar {
+            bottom: 25%;
+        }
+
+        #future .bar.negative {
+            bottom: auto;
+            top: 75%;
         }
 
         #future .bar .icon {
@@ -240,36 +271,61 @@
         }
 
         #future .bar .icon .fa-solid {
-            position: relative;
+            position: absolute;
+            font-size: 70%;
             left: 50%;
             transform: translateX(-50%);
         }
 
-        #future .price {
-            margin-top: 1vh;
-            font-size: .9vw;
-            text-align: center;
+        #future .shortInterval .bar .icon .fa-solid {
+            font-size: 35%;
         }
 
-        #future .soon .price {
-            font-size: 1.8vw;
+        #future .price {
+            position: absolute;
+            z-index: 1;
+            top: -1.3em;
+            left: 0;
+            font-size: 2vh;
+            font-weight: 500;
+            white-space: nowrap;
+            text-shadow: 0 0 0.3em #000;
+        }
+
+        #future .bar.negative .price {
+            top: auto;
+            bottom: -1.2em;
+        }
+
+        #future .timeContainer {
+            width: 100%;
+            height: 4.5em;
+            font-size: max(1.6vh, 7pt);
+            position: relative;
+            left: 50%;
+            transform: translateX(-0.5em);
         }
 
         #future .time {
-            writing-mode: vertical-rl;
-            margin: 0;
-            font-size: 1.3vw;
-            position: absolute;
-            bottom: 1vh;
-            font-weight: bolder;
+            flex-grow: 0;
+            color: #ffffff;
+            padding: 0.3em 0;
+            font-weight: 500;
             letter-spacing: .1em;
-            left: 50%;
-            transform: translateX(-50%) rotate(180deg);
+            white-space: nowrap;
+            width: 0;
+            overflow: visible;
+            text-align: right;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
         }
 
+        #future .time .timePart.hour {
+            font-size: 140%;
+        }
 
-        #future .spike .time {
-            filter: drop-shadow(0 0 .4vh #000000);
+        .bar.negative {
+            background: #81ffcb !important;
         }
 
         .extremelyLow {
@@ -325,6 +381,23 @@
 </noscript>
 
 <template id="app"></template>
+
+<script type="text/x-template" id="price-template">
+    <div class="price">
+        <!-- Formatted like this to prevent extra HTML spaces -->
+        <span v-if="Math.round(interval.perKwh) < 0">-</span><span
+            v-if="Math.abs(Math.round(interval.perKwh)) >= 100" class="unit dollars">$</span
+    >{{ formattedPrice(interval.perKwh)}}<span
+            v-if="Math.abs(Math.round(interval.perKwh)) < 100" class="unit cents">c</span>
+    </div>
+</script>
+
+<script type="text/x-template" id="time-template">
+    <span>
+        <span class="timePart" :class="{hour: isHour}">{{formattedTime.timeStr}}</span>
+        <span class="ampmPart" v-if="isHour || full">{{formattedTime.ampm}}</span>
+    </span>
+</script>
 
 <script type="text/x-template" id="dashboard-template">
     <div id="topLevelContainer">
@@ -431,13 +504,7 @@
                          :style="{width: currentIntervalRemainingPercentage + '%'}">
                     </div>
                     <div id="currentText" class="textContainer">
-                        <div id="currentLabel" class="label">
-                        <span v-if="Math.round(currentGeneralInterval.perKwh) >= 100"
-                              class="unit dollars">$</span>{{
-                                formattedPrice(currentGeneralInterval.perKwh)
-                            }}<span v-if="Math.round(currentGeneralInterval.perKwh) < 100"
-                                    class="unit cents">c</span>
-                        </div>
+                        <price id="currentLabel" class="label" :interval="currentGeneralInterval"></price>
                         <div id="currentDescription" class="description">
                             for the next
                             <template v-if="currentIntervalRemainingMinutesForDisplay == 1">minute</template>
@@ -448,51 +515,54 @@
                     <div id="next" :class="descriptor(nextGeneralInterval)">
                     </div>
                     <div id="nextText" class="textContainer">
-                        <div id="nextLabel" class="label">
-                            <span v-if="Math.round(nextGeneralInterval.perKwh) >= 100"
-                                  class="unit dollars">$</span>{{
-                                formattedPrice(nextGeneralInterval.perKwh)
-                            }}<span v-if="Math.round(nextGeneralInterval.perKwh) < 100"
-                                    class="unit cents">c</span>
-                        </div>
+                        <price id="nextLabel" class="label" :interval="nextGeneralInterval"></price>
                         <div id="nextDescription" class="description">
-                            from {{ nextGeneralIntervalStartTime }}
+                            from
+                            <time-display v-if="nextGeneralInterval" :time="nextGeneralInterval.startTime"
+                                          :full="true"></time-display>
                         </div>
                     </div>
                 </div>
 
             </section>
 
-            <section id="future" style="position: relative">
-                <div id="axis"
-                     style="position: absolute; top: 24.5vh; height: 0.5vh; width: 100%; z-index: 1; background: rgba(0, 0, 0, 0.4); "></div>
-                <div v-for="interval in forecastGeneralIntervalsSorted.slice(1)"
-                     class="bar"
-                     :class="[descriptor(interval), startsSoon(interval) ? 'soon' : '']"
-                     :style="{height: `${50 * heightPercentForBar(interval)}vh`}">
-                    <div class="price">
-                        <span v-if="Math.round(interval.perKwh) >= 100"
-                              class="unit dollars">$</span>{{
-                            formattedPrice(interval.perKwh)
-                        }}<span v-if="Math.round(interval.perKwh) < 100" class="unit cents">c</span>
+            <section id="future" style="position: relative" :class="{hasNegatives: anyFutureNegativePrices}">
+                <div v-for="(interval, i) in futureIntervals"
+                     class="intervalStack"
+                     :class="{shortInterval: interval.duration !== 30}">
+                    <div class="barContainer" :class="{ negative: Math.round(interval.perKwh) < 0 }">
+                        <div class="bar"
+                             :class="[descriptor(interval), { negative: Math.round(interval.perKwh) < 0 }]"
+                             :style="{height: `${heightPercentForBar(interval) * 100}%`,
+                                        ...(Math.round(interval.perKwh) >= 0
+                                            ? {bottom: `${(1 - positiveBarSpaceRatio) * 100}%`}
+                                            : {top: `${positiveBarSpaceRatio * 100}%`})}">
+                            <div v-if="descriptor(interval) === 'spike'" class="icon">
+                                <i class="fa-solid fa-warning"></i>
+                            </div>
+                            <price class="price" :interval="interval"
+                                   v-if="i === 0 || significantPriceChangeIntervals.includes(i)"></price>
+                        </div>
                     </div>
-                    <div v-if="descriptor(interval) === 'spike'" class="icon">
-                        <i class="fa-solid fa-warning"></i>
+                    <div class="timeContainer">
+                        <div class="time">
+                            <time-display v-if="showTime(interval)" :time="interval.startTime"></time-display>
+                        </div>
                     </div>
-                    <div class="time">{{ formattedTime(interval.startTime) }}</div>
                 </div>
-                <div class="strut" style="height: 50vh"></div>
             </section>
         </main>
     </div>
 </script>
 
+<!--<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>-->
 <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luxon@3.6.1/build/global/luxon.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
 
 <script>
+    const TEST_MODE = false;
     const TWENTY_FOUR_HOURS_IN_MS = 24 * 60 * 60 * 1000;
-    const TWO_HOURS_IN_MS = 2 * 60 * 60 * 1000;
     const DEFAULT_HOURS_FORECAST_TO_SHOW = 18;
     const DEFAULT_HIGH_PRICE_LIMIT = 100;
 
@@ -505,6 +575,7 @@
         {style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2});
 
     const DateTime = luxon.DateTime;
+
     function nowNemTime() {
         return DateTime.now().setZone('+10:00');
     }
@@ -525,6 +596,19 @@
 
     // Courtesy of Houshalter on SO: https://stackoverflow.com/a/29641185/243104
     const audioCtx = new (window.AudioContext || window.webkitAudioContext || window.audioContext);
+
+    async function loadTestData() {
+        const data = await (await fetch("test-data.json")).json();
+        // Overwrite the timestamps to make them go from now forwards...
+        let time = DateTime.now().setZone("UTC")
+        time = time.set({minutes: (time.minute - time.minute % 5), seconds: 0, milliseconds: 0})
+        for (const interval of data.filter(i => i.channelType === "general" && ["CurrentInterval", "ForecastInterval"].includes(i.type))) {
+            interval.startTime = time.set({minute: interval.duration === 30 ? time.minute >= 30 ? 30 : 0 : time.minute}).toISO()
+            time = time.plus({minutes: interval.duration})
+            interval.endTime = time.toISO()
+        }
+        return data
+    }
 
     async function beep({duration, frequency, volume, type}) {
         const oscillator = audioCtx.createOscillator();
@@ -563,6 +647,49 @@
         await beep({duration: 150, frequency: 783.99, volume: 0.3, type: 'triangle'})
     }
 
+    Vue.component('price', {
+        props: ['interval'],
+        template: '#price-template',
+
+        methods: {
+            formattedPrice(centsPerKwh) {
+                const roundedCents = Math.abs(Math.round(centsPerKwh));
+                if (roundedCents < 100) {
+                    return roundedCents
+                } else if (roundedCents < 1000) {
+                    return decimalFormat.format(roundedCents / 100)
+                } else {
+                    return Math.round(roundedCents / 100)
+                }
+            },
+        }
+    });
+
+    Vue.component('time-display', {
+        props: ['time', 'full'],
+        template: '#time-template',
+
+        computed: {
+            dateTime() {
+                return DateTime.fromISO(this.time).toLocal()
+            },
+            isHour() {
+                return this.dateTime.minute === 0
+            },
+            formattedTime() {
+                const [timeStr, ampm] = this.dateTime.toLocaleString({
+                    hour: 'numeric',
+                    minute: this.isHour && !this.full ? undefined : 'numeric',
+                    hour12: true
+                }).split(" ");
+                return {
+                    timeStr,
+                    ampm
+                };
+            },
+        }
+    });
+
     const app = new Vue({
         el: "#app",
         template: "#dashboard-template",
@@ -582,9 +709,13 @@
                 highPriceLimit: 100,
                 silent: false,
                 dateTimeNow: -1,
+                width: 900,
             }
         },
         computed: {
+            showOddTimes() {
+                return (this.width / this.futureIntervals?.length ?? 20) > 17
+            },
             apiKeyDirty() {
                 return this.editableApiKey !== this.apiKey;
             },
@@ -615,14 +746,50 @@
                         .value()
                     : null
             },
-            nextGeneralInterval() {
-                return this.forecastGeneralIntervalsSorted ? this.forecastGeneralIntervalsSorted[0] : null;
+            futureIntervals() {
+                return this.forecastGeneralIntervalsSorted ?
+                    _(this.forecastGeneralIntervalsSorted)
+                        .slice(1)
+                        .filter(i => DateTime.fromISO(i.startTime).diffNow('hours').hours <= this.hoursForecastToShow)
+                        .value()
+                    : null
             },
-            nextGeneralIntervalStartTime() {
-                return this.nextGeneralInterval
-                    ? this.formattedTime(this.nextGeneralInterval.startTime)
-                    : null;
+            significantPriceChangeIntervals() {
+                let lastSignificantPrice = null
+
+                return _(this.futureIntervals).map((interval, index) => {
+                    if (!lastSignificantPrice) {
+                        lastSignificantPrice = interval.perKwh
+                        return index
+                    }
+                    const priceA = interval.perKwh;
+                    const priceB = lastSignificantPrice;
+                    const diff = Math.abs(priceA - priceB)
+                    const significantDiff = Math.max(2, Math.min(priceA, priceB) / 10)
+                    if ((priceA < 0 && priceB > 2) || diff > significantDiff) {
+                        lastSignificantPrice = interval.perKwh
+                        return index
+                    } else {
+                        return null
+                    }
+                }).compact().value()
             },
+            anyFutureNegativePrices() {
+                return _(this.futureIntervals).some(i => Math.round(i.perKwh) < 0)
+            },
+            maxFutureNegativePrice() {
+                return _(this.futureIntervals)
+                        ?.map(i => i.perKwh)
+                        .filter(p => Math.round(p) < 0)
+                        .max()
+                    ?? 0
+            },
+            maxNegativeBarPrice() {
+                return Math.min(100, Math.abs(this.maxFutureNegativePrice))
+            },
+            positiveBarSpaceRatio() {
+                return 1 - (0.25 * this.maxNegativeBarPrice / 100)
+            }
         },
         methods: {
             saveApiKey() {
@@ -659,6 +826,31 @@
                     + `?startDate=${startDate}`
                     + `&endDate=${endDate}`;
                 console.log("Requesting forecasts", {startDate, endDate, url});
+                if (TEST_MODE) {
+                    this.intervals = await loadTestData();
+                    console.log({forecastGeneralIntervalsSorted: this.forecastGeneralIntervalsSorted.length})
+                    console.log({forecastGeneralIntervalsSorted: this.forecastGeneralIntervalsSorted[0]})
+                    console.log({hoursDiff: DateTime.fromISO(this.forecastGeneralIntervalsSorted[2].startTime).diffNow('hours').hours})
+                    console.log({futureIntervals: this.futureIntervals[0]})
+                    // For testing...
+                    this.currentGeneralInterval.perKwh = 888;
+                    this.currentGeneralInterval.descriptor = 'spike';
+                    // this.forecastGeneralIntervalsSorted[1].perKwh = 2000;
+                    // this.forecastGeneralIntervalsSorted[1].descriptor = "extremelyHigh";
+                    this.forecastGeneralIntervalsSorted[10].perKwh = 2000;
+                    this.forecastGeneralIntervalsSorted[10].descriptor = "extremelyHigh";
+                    // this.forecastGeneralIntervalsSorted[1].perKwh = 10;
+                    // this.forecastGeneralIntervalsSorted[1].descriptor = "veryLow";
+                    this.forecastGeneralIntervalsSorted[3].perKwh = -245;
+                    this.forecastGeneralIntervalsSorted[3].descriptor = "veryLow";
+                    this.possiblyPlayAlert()
+                    console.log({
+                        maxNegativeBarPrice: this.maxNegativeBarPrice,
+                        positiveBarSpaceRatio: this.positiveBarSpaceRatio
+                    })
+                    console.log("<<< loadIntervals()")
+                    return
+                }
                 try {
                     const response = await fetch(url, {
                         accept: "application/json",
@@ -713,35 +905,38 @@
                 }
                 return interval.descriptor || 'unknown'
             },
-            formattedPrice(centsPerKwh) {
-                const rounded = Math.round(centsPerKwh);
-                return rounded < 100 ? rounded : decimalFormat.format(rounded / 100)
-            },
-            formattedTime(time) {
-                return DateTime.fromISO(time).setZone("+10:00").toLocaleString({
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    hour12: true
-                });
-            },
-            startsSoon(interval) {
-                return (new Date(interval.startTime) - new Date()) < TWO_HOURS_IN_MS;
-            },
             heightPercentForBar(interval) {
                 const price = interval.perKwh;
-                let variablePortion = 0;
-                if (price > BAR_THRESHOLD_4) {
-                    variablePortion = 1.0;
-                } else if (price > BAR_THRESHOLD_3) {
-                    variablePortion = 0.75 + (0.25 * ((price - BAR_THRESHOLD_3) / (BAR_THRESHOLD_4 - BAR_THRESHOLD_3)));
-                } else if (price > BAR_THRESHOLD_2) {
-                    variablePortion = 0.50 + (0.25 * ((price - BAR_THRESHOLD_2) / (BAR_THRESHOLD_3 - BAR_THRESHOLD_2)));
-                } else if (price > BAR_THRESHOLD_1) {
-                    variablePortion = 0.25 + (0.25 * ((price - BAR_THRESHOLD_1) / (BAR_THRESHOLD_2 - BAR_THRESHOLD_1)));
-                } else if (price > 0) {
-                    variablePortion = (0.25 * price / BAR_THRESHOLD_1);
+                if (price < 0) {
+                    return Math.min(this.maxNegativeBarPrice, Math.abs(price))
+                        / this.maxNegativeBarPrice * (1 - this.positiveBarSpaceRatio);
                 }
-                return 0.5 + 0.5 * variablePortion;
+                let positiveBarRatio = 0;
+                if (price > BAR_THRESHOLD_4) {
+                    positiveBarRatio = 1.0;
+                } else if (price > BAR_THRESHOLD_3) {
+                    positiveBarRatio = 0.75 + (0.25 * ((price - BAR_THRESHOLD_3) / (BAR_THRESHOLD_4 - BAR_THRESHOLD_3)));
+                } else if (price > BAR_THRESHOLD_2) {
+                    positiveBarRatio = 0.50 + (0.25 * ((price - BAR_THRESHOLD_2) / (BAR_THRESHOLD_3 - BAR_THRESHOLD_2)));
+                } else if (price > BAR_THRESHOLD_1) {
+                    positiveBarRatio = 0.25 + (0.25 * ((price - BAR_THRESHOLD_1) / (BAR_THRESHOLD_2 - BAR_THRESHOLD_1)));
+                } else {
+                    positiveBarRatio = (0.25 * price / BAR_THRESHOLD_1);
+                }
+                return positiveBarRatio * this.positiveBarSpaceRatio;
+            },
+
+            handleResize() {
+                this.width = window.innerWidth
+            },
+
+            showTime(interval) {
+                const minute = DateTime.fromISO(interval.startTime).minute
+                if (interval.duration !== 30) {
+                    return minute % 30 === 0
+                }
+                const hour = DateTime.fromISO(interval.startTime).hour
+                return this.showOddTimes ? minute === 0 : (minute === 0 && (hour % 2 === 0))
             }
         },
         watch: {
@@ -780,9 +975,10 @@
             },
             silent(newValue) {
                 localStorage.setItem("silent", newValue);
-            }
+            },
         },
         async mounted() {
+            this.width = window.innerWidth
             this.hoursForecastToShow = Number(localStorage.getItem("hoursForecastToShow")) || DEFAULT_HOURS_FORECAST_TO_SHOW;
             this.highPriceLimit = localStorage.getItem("highPriceLimit") || DEFAULT_HIGH_PRICE_LIMIT;
             this.silent = localStorage.getItem("silent") === "true" || localStorage.getItem("silent") === true;
@@ -799,7 +995,14 @@
                     this.loadSites();
                 }
             }
-            setInterval(this.maybeLoadIntervals, 1000);
+            this.loadIntervals().then(() => {
+                    setInterval(this.maybeLoadIntervals, 1000);
+                }
+            )
+            window.addEventListener('resize', this.handleResize);
+        },
+        beforeDestroy() {
+            window.removeEventListener('resize', this.handleResize);
         }
     });
 </script>
