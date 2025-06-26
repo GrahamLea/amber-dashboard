@@ -227,6 +227,7 @@
         }
 
         #future .intervalStack {
+            position: relative;
             flex: 1;
             display: flex;
             flex-direction: column;
@@ -368,6 +369,17 @@
 
         .unknown {
             background: grey;
+        }
+
+        .slide-move {
+            transition: transform 1s ease;
+        }
+        .slide-enter-active, .slide-leave-active {
+            position: absolute !important;
+            transition: opacity 1s ease;
+        }
+        .slide-enter, .slide-leave-to {
+            opacity: 0;
         }
 
         @keyframes flash {
@@ -536,10 +548,11 @@
 
             </section>
 
-            <section id="future" style="position: relative" :class="{hasNegatives: anyFutureNegativePrices}">
+            <transition-group tag="section" id="future" name="slide" style="position: relative" :class="{hasNegatives: anyFutureNegativePrices}">
                 <div v-for="(interval, i) in futureIntervals"
                      class="intervalStack"
-                     :class="{shortInterval: interval.duration !== 30}">
+                     :class="{shortInterval: interval.duration !== 30}"
+                     :key="interval.nemTime">
                     <div class="barContainer" :class="{ negative: Math.round(interval.perKwh) < 0 }">
                         <div class="bar"
                              :class="[descriptor(interval), { negative: Math.round(interval.perKwh) < 0 }]"
@@ -560,7 +573,7 @@
                         </div>
                     </div>
                 </div>
-            </section>
+            </transition-group>
         </main>
     </div>
 </script>
@@ -786,7 +799,7 @@
             futureIntervals() {
                 return this.forecastGeneralIntervalsSorted ?
                     _(this.forecastGeneralIntervalsSorted)
-                        .slice(1)
+                        .slice(this.shouldFakeNextInterval ? 2 : 1)
                         .filter(i => DateTime.fromISO(i.startTime).diffNow('hours').hours <= this.hoursForecastToShow)
                         .value()
                     : null
