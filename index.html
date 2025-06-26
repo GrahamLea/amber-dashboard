@@ -167,13 +167,17 @@
             gap: 0;
         }
 
+        #currentAndNext #currentText.textContainer {
+            z-index: 2;
+        }
+
         #currentText {
-            font-size: min(26vh, 37vw);
+            font-size: min(26vh, 31vw);
             left: 1.5vh;
         }
 
         #nextText {
-            font-size: min(18vh, 25vw);
+            font-size: min(18vh, 21vw);
             text-align: right;
             right: 1.5vh;
         }
@@ -514,7 +518,9 @@
                          :style="{width: currentIntervalRemainingPercentage + '%'}">
                     </div>
                     <div id="currentText" class="textContainer">
-                        <price id="currentLabel" class="label" :interval="currentGeneralInterval"></price>
+                        <price id="currentLabel" class="label"
+                               :interval="currentGeneralInterval"
+                               :trimHighPrices="trimHighCurrentAndNextPrices"></price>
                         <div id="currentDescription" class="description">
                             for the next
                             <template v-if="currentIntervalRemainingMinutesForDisplay == 1">minute</template>
@@ -526,7 +532,9 @@
                     <div id="next" :class="descriptor(nextGeneralInterval)">
                     </div>
                     <div id="nextText" class="textContainer">
-                        <price id="nextLabel" class="label" :interval="nextGeneralInterval"></price>
+                        <price id="nextLabel" class="label"
+                               :interval="nextGeneralInterval"
+                               :trimHighPrices="trimHighCurrentAndNextPrices"></price>
                         <div id="nextDescription" class="description">
                             from
                             <time-display v-if="nextGeneralInterval" :time="nextGeneralInterval.startTime"
@@ -582,7 +590,9 @@
     const BAR_THRESHOLD_3 = 80;
     const BAR_THRESHOLD_4 = 1700;
 
-    const decimalFormat = new Intl.NumberFormat("en-AU",
+    const decimalFormatTrimmed = new Intl.NumberFormat("en-AU",
+        {style: "decimal", minimumFractionDigits: 1, maximumFractionDigits: 1});
+    const decimalFormatFull = new Intl.NumberFormat("en-AU",
         {style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2});
 
     const DateTime = luxon.DateTime;
@@ -659,7 +669,7 @@
     }
 
     Vue.component('price', {
-        props: ['interval'],
+        props: ['interval', 'trimHighPrices'],
         template: '#price-template',
 
         methods: {
@@ -668,7 +678,9 @@
                 if (roundedCents < 100) {
                     return roundedCents
                 } else if (roundedCents < 1000) {
-                    return decimalFormat.format(roundedCents / 100)
+                    return this.trimHighPrices
+                        ? decimalFormatTrimmed.format(roundedCents / 100)
+                        : decimalFormatFull.format(roundedCents / 100);
                 } else {
                     return Math.round(roundedCents / 100)
                 }
@@ -721,11 +733,15 @@
                 silent: false,
                 dateTimeNow: -1,
                 width: 900,
+                height: 600,
             }
         },
         computed: {
             showOddTimes() {
                 return (this.width / this.futureIntervals?.length ?? 20) > 17
+            },
+            trimHighCurrentAndNextPrices() {
+                return this.width / this.height < 1.1;
             },
             apiKeyDirty() {
                 return this.editableApiKey !== this.apiKey;
@@ -951,6 +967,7 @@
 
             handleResize() {
                 this.width = window.innerWidth
+                this.height = window.innerHeight
             },
 
             showTime(interval) {
