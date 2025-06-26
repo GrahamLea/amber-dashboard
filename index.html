@@ -149,8 +149,7 @@
         }
 
         #current, #next {
-            position: relative; /* to anchor the relative positioning of the labels */
-            transition: width 1s linear;
+            transition: width 1s linear, background-color 1.5s ease;
         }
 
         #next {
@@ -257,15 +256,7 @@
         #future .bar {
             position: relative;
             bottom: 0;
-        }
-
-        #future.hasNegatives .bar {
-            bottom: 25%;
-        }
-
-        #future .bar.negative {
-            bottom: auto;
-            top: 75%;
+            transition: height 1s ease, background-color 1s ease, top 1s ease, bottom 1s ease;
         }
 
         #future .bar .icon {
@@ -581,6 +572,7 @@
 
 <script>
     const TEST_MODE = false;
+    const TEST_ANIMATION = false;
     const TWENTY_FOUR_HOURS_IN_MS = 24 * 60 * 60 * 1000;
     const DEFAULT_HOURS_FORECAST_TO_SHOW = 18;
     const DEFAULT_HIGH_PRICE_LIMIT = 100;
@@ -927,6 +919,19 @@
                     this.loadIntervals();
                 }
                 this.dateTimeNow = DateTime.now()
+                if (TEST_ANIMATION && this.generalIntervals && (new Date().getSeconds() % 5 === 0)) {
+                    _(this.generalIntervals).forEach(interval => {
+                        if (Math.random() < 0.2) {
+                            interval.perKwh = interval.perKwh + (15 * (Math.random() - 0.5))
+                        }
+                        if (Math.random() < 0.2) {
+                            interval.descriptor = _.sample([
+                                'extremelyLow', 'veryLow', 'low', 'neutral', 'high', 'spike'
+                            ])
+                        }
+                    })
+                    this.intervals = [...this.intervals]
+                }
             },
             possiblyPlayAlert() {
                 // Play an alert every 5 minutes if there's currently a spike
