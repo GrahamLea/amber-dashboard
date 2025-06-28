@@ -374,12 +374,30 @@
         .slide-move {
             transition: transform 1s ease;
         }
-        .slide-enter-active, .slide-leave-active {
-            position: absolute !important;
-            transition: opacity 1s ease;
+
+        .slide-enter-active {
+            position: relative !important;
+            transition: opacity 1s ease, transform 1s ease;
         }
-        .slide-enter, .slide-leave-to {
+
+        .slide-leave-active {
+            position: absolute !important;
+            transition: opacity 1s ease, transform 1s ease;
+        }
+
+        .slide-enter {
             opacity: 0;
+            transform: translateX(120%);
+        }
+
+        .slide-enter-to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .slide-leave-to {
+            opacity: 0;
+            transform: translateX(-120%);
         }
 
         @keyframes flash {
@@ -548,7 +566,8 @@
 
             </section>
 
-            <transition-group tag="section" id="future" name="slide" style="position: relative" :class="{hasNegatives: anyFutureNegativePrices}">
+            <transition-group tag="section" id="future" name="slide" style="position: relative"
+                              :class="{hasNegatives: anyFutureNegativePrices}">
                 <div v-for="(interval, i) in futureIntervals"
                      class="intervalStack"
                      :class="{shortInterval: interval.duration !== 30}"
@@ -875,7 +894,12 @@
                 const url = `https://api.amber.com.au/v1/sites/${this.selectedSiteId}/prices`
                     + `?startDate=${startDate}`
                     + `&endDate=${endDate}`;
-                console.log("Requesting forecasts", {startDate, endDate, url});
+                console.log("Requesting forecasts", {
+                    hoursForecastToShow: this.hoursForecastToShow,
+                    startDate,
+                    endDate,
+                    url
+                });
                 if (TEST_MODE) {
                     this.intervals = await loadTestData();
                     console.log({forecastGeneralIntervalsSorted: this.forecastGeneralIntervalsSorted.length})
@@ -944,6 +968,7 @@
                         }
                     })
                     this.intervals = [...this.intervals]
+                    this.hoursForecastToShow += Math.random() < 0.5 ? 1 : -1
                 }
             },
             possiblyPlayAlert() {
