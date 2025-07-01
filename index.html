@@ -420,10 +420,10 @@
 <script type="text/x-template" id="price-template">
     <div class="price">
         <!-- Formatted like this to prevent extra HTML spaces -->
-        <span v-if="Math.round(interval.perKwh) < 0">-</span><span
-            v-if="Math.abs(Math.round(interval.perKwh)) >= 100" class="unit dollars">$</span
-    >{{ formattedPrice(interval.perKwh) }}<span
-            v-if="Math.abs(Math.round(interval.perKwh)) < 100" class="unit cents">c</span>
+        <span v-if="interval.priceCents < 0">-</span><span
+            v-if="Math.abs(interval.priceCents) >= 100" class="unit dollars">$</span
+    >{{ formattedPrice(interval.priceCents) }}<span
+            v-if="Math.abs(interval.priceCents) < 100" class="unit cents">c</span>
     </div>
 </script>
 
@@ -558,7 +558,7 @@
                                :trimHighPrices="trimHighCurrentAndNextPrices"></price>
                         <div id="nextDescription" class="description">
                             from
-                            <time-display v-if="nextGeneralInterval" :time="nextGeneralInterval.startTime"
+                            <time-display v-if="nextGeneralInterval" :time="nextGeneralInterval.startDateTimeLocal"
                                           :full="true"></time-display>
                         </div>
                     </div>
@@ -573,10 +573,11 @@
                      :class="{shortInterval: interval.duration !== 30}"
                      :key="interval.nemTime">
                     <div class="barContainer" :class="{ negative: Math.round(interval.perKwh) < 0 }">
+                    <div class="barContainer" :class="{ negative: interval.priceCents < 0 }">
                         <div class="bar"
-                             :class="[descriptor(interval), { negative: Math.round(interval.perKwh) < 0 }]"
+                             :class="[descriptor(interval), { negative: interval.priceCents < 0 }]"
                              :style="{height: `${heightPercentForBar(interval) * 100}%`,
-                                        ...(Math.round(interval.perKwh) >= 0
+                                        ...(interval.priceCents >= 0
                                             ? {bottom: `${(1 - positiveBarSpaceRatio) * 100}%`}
                                             : {top: `${positiveBarSpaceRatio * 100}%`})}">
                             <div v-if="descriptor(interval) === 'spike'" class="icon">
@@ -588,7 +589,7 @@
                     </div>
                     <div class="timeContainer">
                         <div class="time">
-                            <time-display v-if="showTime(interval)" :time="interval.startTime"></time-display>
+                            <time-display v-if="showTime(interval)" :time="interval.startDateTimeLocal"></time-display>
                         </div>
                     </div>
                 </div>
@@ -698,15 +699,15 @@
 
         methods: {
             formattedPrice(centsPerKwh) {
-                const roundedCents = Math.abs(Math.round(centsPerKwh));
-                if (roundedCents < 100) {
-                    return roundedCents
-                } else if (roundedCents < 1000) {
+                const absCents = Math.abs(centsPerKwh);
+                if (absCents < 100) {
+                    return absCents
+                } else if (absCents < 1000) {
                     return this.trimHighPrices
-                        ? decimalFormatTrimmed.format(roundedCents / 100)
-                        : decimalFormatFull.format(roundedCents / 100);
+                        ? decimalFormatTrimmed.format(absCents / 100)
+                        : decimalFormatFull.format(absCents / 100);
                 } else {
-                    return Math.round(roundedCents / 100)
+                    return Math.round(absCents / 100)
                 }
             },
         }
@@ -751,7 +752,7 @@
                 sites: null,
                 sitesRequestError: null,
                 intervalsRequestError: null,
-                intervals: null,
+                rawIntervals: null,
                 hoursForecastToShow: 18,
                 highPriceLimit: 100,
                 silent: false,
@@ -761,6 +762,17 @@
             }
         },
         computed: {
+            intervals() {
+                return this.rawIntervals?.map(
+                    ({startTime, endTime, perKwh, ...interval}) =>
+                        ({
+                            ...interval,
+                            startDateTimeLocal: DateTime.fromISO(startTime).toLocal(),
+                            endDateTimeLocal: DateTime.fromISO(endTime).toLocal(),
+                            priceCents: Math.round(perKwh)
+                        })
+                )
+            },
             showOddTimes() {
                 return (this.width / this.futureIntervals?.length ?? 20) > 17
             },
@@ -771,14 +783,14 @@
                 return this.editableApiKey !== this.apiKey;
             },
             generalIntervals() {
-                return this.intervals?.filter(interval => interval.channelType === "general");
+                return this.intervals?.filter(({channelType}) => channelType === "general");
             },
             shouldFakeNextInterval() {
                 return this.actualCurrentGeneralInterval
-                    && this.dateTimeNow > DateTime.fromISO(this.actualCurrentGeneralInterval.endTime)
+                    && this.dateTimeNow > this.actualCurrentGeneralInterval.endDateTimeLocal
             },
             actualCurrentGeneralInterval() {
-                return this.generalIntervals?.filter(interval => interval.type === "CurrentInterval")[0];
+                return this.generalIntervals?.filter(({type}) => type === "CurrentInterval")[0];
             },
             currentGeneralInterval() {
                 if (this.shouldFakeNextInterval) {
@@ -796,7 +808,7 @@
             },
             currentIntervalRemainingMinutes() {
                 return this.currentGeneralInterval ?
-                    Math.max(0, DateTime.fromISO(this.currentGeneralInterval.endTime).diff(this.dateTimeNow, 'minutes').minutes) :
+                    Math.max(0, this.currentGeneralInterval.endDateTimeLocal.diff(this.dateTimeNow, 'minutes').minutes) :
                     0;
             },
             currentIntervalRemainingMinutesForDisplay() {
@@ -819,7 +831,7 @@
                 return this.forecastGeneralIntervalsSorted ?
                     _(this.forecastGeneralIntervalsSorted)
                         .slice(this.shouldFakeNextInterval ? 2 : 1)
-                        .filter(i => DateTime.fromISO(i.startTime).diffNow('hours').hours <= this.hoursForecastToShow)
+                        .filter(i => DateTime.fromISO(i.startDateTimeLocal).diffNow('hours').hours <= this.hoursForecastToShow)
                         .value()
                     : null
             },
@@ -828,15 +840,15 @@
 
                 return _(this.futureIntervals).map((interval, index) => {
                     if (!lastSignificantPrice) {
-                        lastSignificantPrice = interval.perKwh
+                        lastSignificantPrice = interval.priceCents
                         return index
                     }
-                    const priceA = interval.perKwh;
+                    const priceA = interval.priceCents;
                     const priceB = lastSignificantPrice;
                     const diff = Math.abs(priceA - priceB)
                     const significantDiff = Math.max(2, Math.min(priceA, priceB) / 10)
                     if ((priceA < 0 && priceB > 2) || diff > significantDiff) {
-                        lastSignificantPrice = interval.perKwh
+                        lastSignificantPrice = interval.priceCents
                         return index
                     } else {
                         return null
@@ -844,12 +856,12 @@
                 }).compact().value()
             },
             anyFutureNegativePrices() {
-                return _(this.futureIntervals).some(i => Math.round(i.perKwh) < 0)
+                return _(this.futureIntervals).some(i => i.priceCents < 0)
             },
             maxFutureNegativePrice() {
                 return _(this.futureIntervals)
-                        ?.map(i => i.perKwh)
-                        .filter(p => Math.round(p) < 0)
+                        ?.map(i => i.priceCents)
+                        .filter(p => p < 0)
                         .max()
                     ?? 0
             },
@@ -901,28 +913,27 @@
                     url
                 });
                 if (TEST_MODE) {
-                    this.intervals = await loadTestData();
+                    this.rawIntervals = await loadTestData();
                     console.log({forecastGeneralIntervalsSorted: this.forecastGeneralIntervalsSorted.length})
                     console.log({forecastGeneralIntervalsSorted: this.forecastGeneralIntervalsSorted[0]})
                     console.log({hoursDiff: DateTime.fromISO(this.forecastGeneralIntervalsSorted[2].startTime).diffNow('hours').hours})
                     console.log({futureIntervals: this.futureIntervals[0]})
                     // For testing...
-                    this.currentGeneralInterval.perKwh = 888;
+                    this.currentGeneralInterval.priceCents = 888;
                     this.currentGeneralInterval.descriptor = 'spike';
-                    // this.forecastGeneralIntervalsSorted[1].perKwh = 2000;
-                    // this.forecastGeneralIntervalsSorted[1].descriptor = "extremelyHigh";
-                    this.forecastGeneralIntervalsSorted[10].perKwh = 2000;
-                    this.forecastGeneralIntervalsSorted[10].descriptor = "extremelyHigh";
-                    // this.forecastGeneralIntervalsSorted[1].perKwh = 10;
+                    this.forecastGeneralIntervalsSorted[0].priceCents = 888;
+                    this.forecastGeneralIntervalsSorted[0].descriptor = "veryLow";
+                    this.forecastGeneralIntervalsSorted[10].priceCents = 700;
+                    this.forecastGeneralIntervalsSorted[10].descriptor = "test";
+                    // this.forecastGeneralIntervalsSorted[1].priceCents = 10;
                     // this.forecastGeneralIntervalsSorted[1].descriptor = "veryLow";
-                    this.forecastGeneralIntervalsSorted[3].perKwh = -245;
+                    this.forecastGeneralIntervalsSorted[3].priceCents = -245;
                     this.forecastGeneralIntervalsSorted[3].descriptor = "veryLow";
                     this.possiblyPlayAlert()
                     console.log({
                         maxNegativeBarPrice: this.maxNegativeBarPrice,
                         positiveBarSpaceRatio: this.positiveBarSpaceRatio
                     })
-                    console.log("<<< loadIntervals()")
                     return
                 }
                 try {
@@ -931,7 +942,9 @@
                         headers: {"Authorization": `Bearer ${this.apiKey}`}
                     })
                     if (response.ok) {
-                        this.intervals = await response.json()
+                        const responseJson = await response.json();
+                        console.log(`Loaded ${responseJson.length} intervals`)
+                        this.rawIntervals = responseJson
                         this.possiblyPlayAlert()
                         return true
                     } else {
@@ -959,7 +972,7 @@
                 if (TEST_ANIMATION && this.generalIntervals && (new Date().getSeconds() % 5 === 0)) {
                     _(this.generalIntervals).forEach(interval => {
                         if (Math.random() < 0.2) {
-                            interval.perKwh = interval.perKwh + (15 * (Math.random() - 0.5))
+                            interval.priceCents = interval.priceCents + Math.round(15 * (Math.random() - 0.5))
                         }
                         if (Math.random() < 0.2) {
                             interval.descriptor = _.sample([
@@ -967,7 +980,7 @@
                             ])
                         }
                     })
-                    this.intervals = [...this.intervals]
+                    this.rawIntervals = [...this.rawIntervals]
                     this.hoursForecastToShow += Math.random() < 0.5 ? 1 : -1
                 }
             },
@@ -982,13 +995,13 @@
             descriptor(interval) {
                 if (interval.spikeStatus === "spike" ||
                     interval.spikeStatus === "potential" ||
-                    interval.perKwh > this.highPriceLimit) {
+                    interval.priceCents > this.highPriceLimit) {
                     return "spike"
                 }
                 return interval.descriptor || 'unknown'
             },
             heightPercentForBar(interval) {
-                const price = interval.perKwh;
+                const price = interval.priceCents;
                 if (price < 0) {
                     return Math.min(this.maxNegativeBarPrice, Math.abs(price))
                         / this.maxNegativeBarPrice * (1 - this.positiveBarSpaceRatio);
@@ -1014,11 +1027,11 @@
             },
 
             showTime(interval) {
-                const minute = DateTime.fromISO(interval.startTime).minute
+                const minute = interval.startDateTimeLocal.minute
                 if (interval.duration !== 30) {
                     return minute % 30 === 0
                 }
-                const hour = DateTime.fromISO(interval.startTime).hour
+                const hour = interval.startDateTimeLocal.hour
                 return this.showOddTimes ? minute === 0 : (minute === 0 && (hour % 2 === 0))
             }
         },
@@ -1027,7 +1040,7 @@
                 console.log("New API key set");
                 localStorage.setItem("apiKey", newKey);
                 this.editableApiKey = this.apiKey;
-                this.intervals = null;
+                this.rawIntervals = null;
                 this.selectedSiteId = null;
             },
             sites(newSites) {
