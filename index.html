@@ -758,6 +758,7 @@
                 highPriceLimit: 100,
                 silent: false,
                 dateTimeNow: DateTime.now(),
+                hourMinuteNow: DateTime.now().set({seconds: 0,  milliseconds: 0}),
                 width: 900,
                 height: 600,
             }
@@ -788,7 +789,7 @@
             },
             shouldFakeNextInterval() {
                 return this.actualCurrentGeneralInterval
-                    && this.dateTimeNow > this.actualCurrentGeneralInterval.endDateTimeLocal
+                    && this.hourMinuteNow >= this.actualCurrentGeneralInterval.endDateTimeLocal
             },
             actualCurrentGeneralInterval() {
                 return this.generalIntervals?.filter(({type}) => type === "CurrentInterval")[0];
@@ -1077,6 +1078,12 @@
             silent(newValue) {
                 localStorage.setItem("silent", newValue);
             },
+            dateTimeNow(newValue) {
+                const currentHourMinute = newValue.set({seconds: 0,  milliseconds: 0});
+                if (currentHourMinute.toISO() !== this.hourMinuteNow.toISO()) {
+                    this.hourMinuteNow = currentHourMinute;
+                }
+            }
         },
         async mounted() {
             window.addEventListener('resize', this.handleResize);
