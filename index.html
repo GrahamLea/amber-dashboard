@@ -622,7 +622,7 @@
     const DateTime = luxon.DateTime;
 
     function nowNemTime() {
-        return DateTime.now().setZone('+10:00');
+        return DateTime.now().setZone('UTC+10');
     }
 
     function flashExtremeElements() {
