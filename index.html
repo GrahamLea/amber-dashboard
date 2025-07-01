@@ -743,12 +743,13 @@
         template: "#dashboard-template",
         data: function () {
             return {
+                initialising: true,
                 configMode: true,
                 loadedTime: new Date(),
                 apiKey: null,
                 editableApiKey: null,
                 selectedSiteId: null,
-                lastRequestMinute: -1,
+                lastRequestMinute: null,
                 sites: null,
                 sitesRequestError: null,
                 intervalsRequestError: null,
@@ -756,7 +757,7 @@
                 hoursForecastToShow: 18,
                 highPriceLimit: 100,
                 silent: false,
-                dateTimeNow: -1,
+                dateTimeNow: DateTime.now(),
                 width: 900,
                 height: 600,
             }
@@ -955,20 +956,19 @@
                     this.intervalsRequestError = `${e}`;
                 }
             },
-            maybeLoadIntervals() {
+            async maybeLoadIntervals() {
+                this.dateTimeNow = DateTime.now()
                 if (!this.apiKey || !this.selectedSiteId) {
                     return;
                 }
                 if (new Date() - this.loadedTime > TWENTY_FOUR_HOURS_IN_MS) {
                     location.reload();
                 }
-                const now = new Date();
-                const minuteNow = now.getMinutes();
-                if (minuteNow !== this.lastRequestMinute && now.getSeconds() > 20) {
+                const minuteNow = this.dateTimeNow.minute;
+                if (this.lastRequestMinute === null || (minuteNow !== this.lastRequestMinute && this.dateTimeNow.second > 20)) {
                     this.lastRequestMinute = minuteNow;
-                    this.loadIntervals();
+                    await this.loadIntervals();
                 }
-                this.dateTimeNow = DateTime.now()
                 if (TEST_ANIMATION && this.generalIntervals && (new Date().getSeconds() % 5 === 0)) {
                     _(this.generalIntervals).forEach(interval => {
                         if (Math.random() < 0.2) {
@@ -1037,6 +1037,8 @@
         },
         watch: {
             apiKey(newKey) {
+                if (this.initialising) return;
+
                 console.log("New API key set");
                 localStorage.setItem("apiKey", newKey);
                 this.editableApiKey = this.apiKey;
@@ -1046,7 +1048,7 @@
             sites(newSites) {
                 console.log("Sites downloaded: ", newSites);
                 if (newSites && newSites.length === 1) {
-                    if (this.selectedSiteId === null) {
+                    if (this.selectedSiteId === null && !this.initialising) {
                         this.selectedSiteId = newSites[0].id;
                     } else if (!_.map(newSites, "id").includes(this.selectedSiteId)) {
                         console.log("Current Selected Site ID not in new Sites list. Unsetting");
@@ -1056,9 +1058,12 @@
                 }
             },
             selectedSiteId(newValue) {
+                if (this.initialising) return;
+
                 console.log("Selected Site ID changed: ", newValue);
                 localStorage.setItem("selectedSiteId", newValue);
                 if (newValue) {
+                    this.rawIntervals = null;
                     this.lastRequestMinute = -1;
                     this.maybeLoadIntervals();
                 }
@@ -1074,9 +1079,10 @@
             },
         },
         async mounted() {
+            window.addEventListener('resize', this.handleResize);
             this.width = window.innerWidth
             this.hoursForecastToShow = Number(localStorage.getItem("hoursForecastToShow")) || DEFAULT_HOURS_FORECAST_TO_SHOW;
-            this.highPriceLimit = localStorage.getItem("highPriceLimit") || DEFAULT_HIGH_PRICE_LIMIT;
+            this.highPriceLimit = Number(localStorage.getItem("highPriceLimit")) || DEFAULT_HIGH_PRICE_LIMIT;
             this.silent = localStorage.getItem("silent") === "true" || localStorage.getItem("silent") === true;
             const storedApiKey = localStorage.getItem("apiKey");
             if (storedApiKey) {
@@ -1091,11 +1097,9 @@
                     this.loadSites();
                 }
             }
-            this.loadIntervals().then(() => {
-                    setInterval(this.maybeLoadIntervals, 1000);
-                }
-            )
-            window.addEventListener('resize', this.handleResize);
+            await this.maybeLoadIntervals();
+            setInterval(this.maybeLoadIntervals, 1000);
+            this.initialising = false
         },
         beforeDestroy() {
             window.removeEventListener('resize', this.handleResize);
