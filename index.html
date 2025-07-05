@@ -21,20 +21,41 @@
 
         .configButton, #closeButton {
             position: absolute;
-            top: 2vh;
-            left: 50vw;
-            transform: translateX(-50%);
             z-index: 1;
+            right: 0;
+            margin: 20px;
 
-            font-size: min(4vh, 4vw);
-            padding: min(1vh, 1vw);
-            width: min(6vh, 6vw);
-            height: min(6vh, 6vw);
-            border-radius: min(1vh, 1vw);
+            width: 60px;
+            height: 60px;
+            font-size: 35px;
+            line-height: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
             vertical-align: center;
 
-            background-color: rgba(200, 200, 200, 0.8);
-            color: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0);
+            opacity: 30%;
+        }
+
+        .configButton:hover, #closeButton:hover {
+            opacity: 40%;
+        }
+
+        .configButton:active, #closeButton:active {
+            opacity: 50%;
+        }
+
+        .configButton {
+            top: 40vh;
+            color: #fff;
+            border: 2px solid #fff;
+        }
+
+        #closeButton {
+            top: 0;
+            color: #000;
+            border: 2px solid #000;
         }
 
 
@@ -43,7 +64,7 @@
         }
 
         h1 {
-            font-size: 5vw;
+            font-size: min(6vw, 6vh);
         }
 
         main#config {
@@ -60,7 +81,7 @@
             position: relative;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 4vw;
+            font-size: min(4vw, 3vh);
             border-spacing: 5vh;
         }
 
@@ -77,13 +98,13 @@
         #configData label,
         #configData input,
         #configData select {
-            font-size: 3vw;
+            font-size: min(4vw, 3vh);
             color: #333333;
             padding: 0.5vw;
         }
 
         #configData input[type=checkbox] {
-            transform: scale(400%);
+            transform: scale(200%);
         }
 
         #configData input,
@@ -97,14 +118,14 @@
 
         #configData button {
             background-color: rgba(200, 200, 200, 0.8);
-            font-size: 6vh;
+            font-size: min(4vw, 3vh);
             padding: 2vh;
             border-radius: 1vh;
         }
 
         main#loading {
             height: 100vh;
-            font-size: 5vw;
+            font-size: min(5vw, 5vh);
             text-align: center;
             display: flex;
             flex-direction: column;
@@ -435,11 +456,14 @@
 </script>
 
 <script type="text/x-template" id="dashboard-template">
-    <div id="topLevelContainer">
+    <div id="topLevelContainer" style="position: relative;">
+        <button v-if="!configMode" class="configButton" @click="configMode = true">
+            <i class="configIcon fa-solid fa-gear"></i>
+        </button>
+        <button v-else id="closeButton" @click="configMode = false">
+            <i id="closeIcon" class="fa-solid fa-xmark"></i>
+        </button>
         <main id="config" v-if="configMode">
-            <button id="closeButton" @click="configMode = false">
-                <i v-if="configMode" id="closeIcon" class="fa-solid fa-xmark"></i>
-            </button>
             <div id="configData">
                 <h1>Amber Electric Dashboard</h1>
                 <table>
@@ -447,8 +471,7 @@
                         <th>
                             <label for="apiKey">API Key:</label>
                             <sup>
-                                <i class="fa-solid fa-circle-info"
-                                   style="font-size: 50%"
+                                <i class="fa-solid fa-circle-question"
                                    :title="'Get your personal Amber API Key from:\nhttps://app.amber.com.au/developers/\n\n' +
                                     'The dashboard stores your key safely in your browser\'s local storage.'"></i>
                             </sup>
@@ -491,7 +514,13 @@
                     </tr>
 
                     <tr>
-                        <th><label for="highPriceLimit">High Price Threshold (c)</label></th>
+                        <th>
+                            <label for="highPriceLimit">High Price Threshold (c)</label>
+                            <sup>
+                                <i class="fa-solid fa-circle-question"
+                                   :title="'Intervals above this price will be visualised the same as spikes.'"></i>
+                            </sup>
+                        </th>
                         <td>
                             <input id="highPriceLimit" type="number" min="0" max="2000"
                                    v-model.number="highPriceLimit">
@@ -499,9 +528,15 @@
                     </tr>
 
                     <tr>
-                        <th><label for="silent">Silent Mode</label></th>
-                        <td>
-                            <input id="silent" type="checkbox" v-model="silent">
+                        <th>
+                            <label for="playAlerts">Play Alerts</label>
+                            <sup>
+                                <i class="fa-solid fa-circle-question"
+                                   :title="'During a spike, play a short alert sound every 5 minutes'"></i>
+                            </sup>
+                        </th>
+                        <td style="">
+                            <input id="playAlerts" type="checkbox" v-model="playAlerts" style="width: auto; margin-left: 5px;">
                         </td>
                     </tr>
 
@@ -518,15 +553,9 @@
             </div>
         </main>
         <main id="loading" v-else-if="!intervals">
-            <button class="configButton" @click="configMode = true">
-                <i class="configIcon fa-solid fa-gear"></i>
-            </button>
             <div>Loading Amber forecasts...</div>
         </main>
         <main id="dashboard" v-else>
-            <button class="configButton" @click="configMode = true">
-                <i class="configIcon fa-solid fa-gear"></i>
-            </button>
             <section id="currentAndNext">
 
                 <div id="currentAndNextHeader">
@@ -744,7 +773,7 @@
         data: function () {
             return {
                 initialising: true,
-                configMode: true,
+                configMode: false,
                 loadedTime: new Date(),
                 apiKey: null,
                 editableApiKey: null,
@@ -756,9 +785,9 @@
                 rawIntervals: null,
                 hoursForecastToShow: 18,
                 highPriceLimit: 100,
-                silent: false,
+                playAlerts: true,
                 dateTimeNow: DateTime.now(),
-                hourMinuteNow: DateTime.now().set({seconds: 0,  milliseconds: 0}),
+                hourMinuteNow: DateTime.now().set({seconds: 0, milliseconds: 0}),
                 width: 900,
                 height: 600,
             }
@@ -989,7 +1018,7 @@
                 // Play an alert every 5 minutes if there's currently a spike
                 let isCurrentlyASpike = this.descriptor(this.currentGeneralInterval) === "spike";
                 let isZerothMinute = (new Date().getMinutes() % 5) < 1;
-                if (!this.silent && isCurrentlyASpike && isZerothMinute) {
+                if (this.playAlerts && isCurrentlyASpike && isZerothMinute) {
                     playAlert();
                 }
             },
@@ -1075,11 +1104,11 @@
             highPriceLimit(newValue) {
                 localStorage.setItem("highPriceLimit", newValue);
             },
-            silent(newValue) {
-                localStorage.setItem("silent", newValue);
+            playAlerts(newValue) {
+                localStorage.setItem("playAlerts", newValue);
             },
             dateTimeNow(newValue) {
-                const currentHourMinute = newValue.set({seconds: 0,  milliseconds: 0});
+                const currentHourMinute = newValue.set({seconds: 0, milliseconds: 0});
                 if (currentHourMinute.toISO() !== this.hourMinuteNow.toISO()) {
                     this.hourMinuteNow = currentHourMinute;
                 }
@@ -1090,10 +1119,14 @@
             this.width = window.innerWidth
             this.hoursForecastToShow = Number(localStorage.getItem("hoursForecastToShow")) || DEFAULT_HOURS_FORECAST_TO_SHOW;
             this.highPriceLimit = Number(localStorage.getItem("highPriceLimit")) || DEFAULT_HIGH_PRICE_LIMIT;
-            this.silent = localStorage.getItem("silent") === "true" || localStorage.getItem("silent") === true;
+            if (localStorage.getItem("playAlerts") === "false" || localStorage.getItem("playAlerts") === false
+                || localStorage.getItem("silent") === "true" || localStorage.getItem("silent") === true) { // Migrating old 'silent' values
+                this.playAlerts = false  // watcher will store this
+            }
             const storedApiKey = localStorage.getItem("apiKey");
             if (storedApiKey) {
                 this.apiKey = storedApiKey;
+                this.editableApiKey = this.apiKey;
                 const storedSelectedSiteId = localStorage.getItem("selectedSiteId");
                 if (storedSelectedSiteId) {
                     this.selectedSiteId = storedSelectedSiteId;
