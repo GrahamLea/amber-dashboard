@@ -28,7 +28,10 @@ follow the sun:
 "Sun's up" is learnt from the house's own meter, not sunrise times: over the last two weeks, the
 half-hours that exported more than they imported on at least half the days are green, and the
 half-hours either side that did on at least a quarter of days are blue. It follows the seasons and the
-panels on its own, but not today's weather. A negative price is always green. Until there are 5 days of
+panels on its own, but not today's weather. The sun only makes it green while the grid price is also
+low (Amber's low or cheaper); at a dearer price, e.g. a peak tariff starting mid-afternoon, a big load
+that outruns the panels costs real money, so sun shows blue and low sun amber. A negative price is
+always green. Until there are 5 days of
 meter data it falls back to Amber's own rating (green for low prices, amber for neutral).
 
 The right of the banner shows when free ends, or when the next free period starts.

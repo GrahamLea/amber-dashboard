@@ -365,16 +365,21 @@ const app = new Vue({
         },
         monthCost() {
             // Month to date, as metered: every channel's cost (cents, incl. GST), so feed-in credits
-            // net off. Excludes daily supply charges and the Amber membership fee.
-            const monthStart = DateTime.now().startOf("month").toISODate();
-            const usage = this.rawUsage?.filter(({date}) => date >= monthStart);
-            if (!usage?.length) return null;
-            const cents = _.sumBy(usage, "cost");
-            const lastDate = _.maxBy(usage, "date").date;
-            return {
-                text: dollarFormat.format(cents / 100),
-                upTo: DateTime.fromISO(lastDate).toFormat("d LLL"),
-            };
+            // net off. Excludes daily supply charges and the Amber membership fee. Meter data runs a day
+            // or so behind, so until this month has any, show last month's.
+            const thisMonth = DateTime.now().startOf("month");
+            for (const month of [thisMonth, thisMonth.minus({months: 1})]) {
+                const [from, to] = [month.toISODate(), month.endOf("month").toISODate()];
+                const usage = this.rawUsage?.filter(({date}) => date >= from && date <= to);
+                if (usage?.length) {
+                    return {
+                        label: month === thisMonth ? "this month" : `in ${month.toFormat("LLLL")}`,
+                        text: dollarFormat.format(_.sumBy(usage, "cost") / 100),
+                        upTo: DateTime.fromISO(_.maxBy(usage, "date").date).toFormat("d LLL"),
+                    };
+                }
+            }
+            return null;
         },
         solarSlots() {
             // For each half-hour of the day (local time): "sun", "lowSun" or null. Null overall until
@@ -507,7 +512,9 @@ const app = new Vue({
             // at most 7 days of usage per request, so ask in fixed weeks of each month (1st-7th, 8th-14th,
             // ...): the server only accepts these, and past weeks stay cached.
             const today = DateTime.now();
-            const from = DateTime.min(today.startOf("month"), today.minus({days: SOLAR_PROFILE_DAYS}).startOf("day"));
+            // Early in the month, all of last month too: its total shows until this month's meter data arrives
+            const monthStart = today.day <= 7 ? today.startOf("month").minus({months: 1}) : today.startOf("month");
+            const from = DateTime.min(monthStart, today.minus({days: SOLAR_PROFILE_DAYS}).startOf("day"));
             const urls = [];
             for (let month = from.startOf("month"); month <= today; month = month.plus({months: 1})) {
                 for (let start = month; start <= today && start.hasSame(month, "month"); start = start.plus({days: 7})) {
@@ -610,7 +617,18 @@ const app = new Vue({
             if (!this.solarSlots || DESCRIPTOR_RATINGS[descriptor] === "red") {
                 return DESCRIPTOR_RATINGS[descriptor] || "unknown"
             }
-            return {sun: "green", lowSun: "blue"}[this.sunPeriod(interval)] || "amber"
+            // The sun only makes power free when the grid is cheap too: at a dearer price (e.g. a peak
+            // tariff starting mid-afternoon), a big load that outruns the panels costs real money, so the
+            // sun lifts the rating one step instead
+            const cheap = DESCRIPTOR_RATINGS[descriptor] === "green";
+            switch (this.sunPeriod(interval)) {
+                case "sun":
+                    return cheap ? "green" : "blue"
+                case "lowSun":
+                    return cheap ? "blue" : "amber"
+                default:
+                    return "amber"
+            }
         },
         sunPeriod(interval) {
             const start = interval.startDateTimeLocal;
